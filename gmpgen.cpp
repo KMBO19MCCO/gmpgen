@@ -29,7 +29,7 @@ pair<fp_t, fp_t> Framework<fp_t>::deviation(vector<fp_t> rootsInput) {
         fp_t minDevCur = numeric_limits<fp_t>::max();
         auto tempInInd = 0;
         auto tempInd = 0;
-        for (auto j = 0; j < roots.size(); ++j) {
+        for (auto j = 0; j < tempRootsInput.size(); ++j) {
             auto dev = abs(tempRootsInput[j] - tempRoots[i]);
             if (dev < minDevCur) {
                 tempInInd = j;
@@ -38,7 +38,7 @@ pair<fp_t, fp_t> Framework<fp_t>::deviation(vector<fp_t> rootsInput) {
             }
         }
         maxDev = max(minDevCur, maxDev);
-        relDev = maxDev / abs(max(tempRootsInput[tempInInd], tempRoots[tempInd]));
+        relDev = maxDev / max(abs(tempRootsInput[tempInInd]), abs(tempRoots[tempInd]));
         tempRootsInput[tempInInd] = -numeric_limits<fp_t>::max();
         tempRoots[tempInd] = numeric_limits<fp_t>::max();
     }
