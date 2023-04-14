@@ -9,4 +9,4 @@ link_libraries(gmpxx gmp)
 link_libraries(OpenMP::OpenMP_CXX)
 
 add_executable(${PROJECT_NAME} main.cpp gmpgen.cpp)
-
+add_compile_options(${CMAKE_PROJECT_NAME} -mfma)

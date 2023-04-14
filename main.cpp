@@ -22,9 +22,7 @@ vector<float> solve(std::vector<fp_t> coefficients){
     return output;
 }
 
-
-
 int main() {
-    Framework::generateBatch(1000'0000, 2, -1., 1, 1e-1, solve<float>);
+    Framework<float>::generateBatch(1000'0000, 2, -1., 1, 1e-1, solve<float>);
     return 0;
 }

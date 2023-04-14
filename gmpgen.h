@@ -18,20 +18,20 @@ template<typename fp_t>
 fp_t pr_product_difference(fp_t a, fp_t b, fp_t c, fp_t d);
 
 
-
+template<typename fp_t>
 class Framework {
 public:
     vector<mpf_class> roots;
-    vector<float> rootsReal;
+    vector<fp_t> rootsReal;
     vector<mpf_class> coefficients;
-    vector<float> coefficientsReal;
+    vector<fp_t> coefficientsReal;
     unsigned long long internalSeed;
 
     explicit Framework(int rootsCount, unsigned long long seed = 0) {
         roots = vector<mpf_class>(rootsCount);
-        rootsReal = vector<float>(rootsCount);
+        rootsReal = vector<fp_t>(rootsCount);
         coefficients = vector<mpf_class>(rootsCount + 1);
-        coefficientsReal = vector<float>(rootsCount + 1);
+        coefficientsReal = vector<fp_t>(rootsCount + 1);
 
         internalSeed = randomDevice();
         if (seed) internalSeed = seed;
@@ -39,7 +39,7 @@ public:
         cout.precision(50);
     }
 
-    void generate(float low, float high, float dist);
+    void generate(fp_t low, fp_t high, fp_t dist);
 
     friend ostream &operator<<(ostream &os, const Framework &framework) {
         //framework.generator.seed();
@@ -58,13 +58,14 @@ public:
         return os;
     }
 
-    static void generateBatch(int count, int rootsCount, float low, float high, float maxDistance, vector<float> (*testing)(vector<float>));
+    static void generateBatch(int count, int rootsCount, fp_t low, fp_t high, fp_t maxDistance,
+                              vector<fp_t> (*testing)(vector<fp_t>));
 
 private:
     random_device randomDevice;
     mt19937_64 generator;
 
-    pair<float,float> deviation(vector<float> roots);
+    pair<fp_t, fp_t> deviation(vector<fp_t> rootsInput);
 };
 
 #endif //GMPGEN_GMPGEN_H

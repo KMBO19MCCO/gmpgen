@@ -15,17 +15,18 @@ fp_t pr_product_difference(fp_t a, fp_t b, fp_t c, fp_t d) {
     return fma(a, b, -tmp) + fma(-d, c, tmp);
 }
 
-pair<float, float> Framework::deviation(vector<float> rootsInput) {
-    vector<float> tempRoots = vector<float>(roots.size());
-    vector<float> tempRootsInput = vector<float>(roots.size());
+template<typename fp_t>
+pair<fp_t, fp_t> Framework<fp_t>::deviation(vector<fp_t> rootsInput) {
+    vector<fp_t> tempRoots = vector<fp_t>(roots.size());
+    vector<fp_t> tempRootsInput = vector<fp_t>(roots.size());
     for (auto i = 0; i < roots.size(); ++i) {
-        tempRoots[i] = static_cast<float>(roots[i].get_d());
+        tempRoots[i] = static_cast<fp_t>(roots[i].get_d());
         tempRootsInput[i] = rootsInput[i];
     }
-    float maxDev = 0.f;
-    float relDev = 0.f;
+    fp_t maxDev = 0.f;
+    fp_t relDev = 0.f;
     for (auto i = 0; i < roots.size(); ++i) {
-        float minDevCur = numeric_limits<float>::max();
+        fp_t minDevCur = numeric_limits<fp_t>::max();
         auto tempInInd = 0;
         auto tempInd = 0;
         for (auto j = 0; j < roots.size(); ++j) {
@@ -38,8 +39,8 @@ pair<float, float> Framework::deviation(vector<float> rootsInput) {
         }
         maxDev = max(minDevCur, maxDev);
         relDev = maxDev / abs(max(tempRootsInput[tempInInd], tempRoots[tempInd]));
-        tempRootsInput[tempInInd] = -numeric_limits<float>::max();
-        tempRoots[tempInd] = numeric_limits<float>::max();
+        tempRootsInput[tempInInd] = -numeric_limits<fp_t>::max();
+        tempRoots[tempInd] = numeric_limits<fp_t>::max();
     }
     return {maxDev, relDev};
 }
@@ -50,12 +51,13 @@ pair<float, float> Framework::deviation(vector<float> rootsInput) {
  * @param low,high,dist values to generate root from low to high.
  * @return Root in based distance.
  */
-void Framework::generate(float low, float high, float dist) {
-    uniform_real_distribution<float> distribution(low, high);
+template<typename fp_t>
+void Framework<fp_t>::generate(fp_t low, fp_t high, fp_t dist) {
+    uniform_real_distribution<fp_t> distribution(low, high);
     long double mid = distribution(generator);
     for (auto &root: roots) {
-        uniform_real_distribution<float> distributionSmall(-dist, +dist);
-        root = static_cast<float>(mid + distributionSmall(generator));
+        uniform_real_distribution<fp_t> distributionSmall(-dist, +dist);
+        root = static_cast<fp_t>(mid + distributionSmall(generator));
     }
 
     switch (roots.size()) {
@@ -75,38 +77,39 @@ void Framework::generate(float low, float high, float dist) {
     }
 
     for (int i = 0; i < roots.size(); i++) {
-        rootsReal[i] = static_cast<float>(roots[i].get_d());
+        rootsReal[i] = static_cast<fp_t>(roots[i].get_d());
     }
     for (int i = 0; i < roots.size() + 1; i++) {
-        coefficientsReal[i] = static_cast<float>(coefficients[i].get_d());
+        coefficientsReal[i] = static_cast<fp_t>(coefficients[i].get_d());
     }
 }
 
 
 template<typename tmp>
 void printVector(vector<tmp> input) {
-    for (auto i = 0; i < input.size(); ++i) cout << input[i] << " ";
+    for (auto i = 0; i < input.size(); ++i) cout << ' ' << input[i] << " " << endl;
 }
 
+template<typename fp_t>
 struct comparator {
-    std::pair<float, float> deviations;
-    vector<float> rootsCompute;
+    std::pair<fp_t, fp_t> deviations;
+    vector<fp_t> rootsCompute;
     vector<mpf_class> rootsTrue;
     vector<mpf_class> coefficients;
 };
 
-void Framework::generateBatch(int count, int rootsCount, float low, float high, float maxDistance,
-                              vector<float> (*testing)(vector<float>)) {
+template<typename fp_t>
+void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t high, fp_t maxDistance,
+                                    vector<fp_t> (*testing)(vector<fp_t>)) {
     vector<Framework *> frameworks;
 
-    float max_deviation = -1.f;
     auto cores = omp_get_num_procs();
-    auto *comparison = new comparator[cores];
+    auto *comparison = new comparator<fp_t>[cores];
 
     for (auto i = 0; i < cores; ++i) {
         frameworks.push_back(new Framework(rootsCount));
         comparison[i].deviations = std::pair(-1.f, -1.f);
-        comparison[i].rootsCompute = vector<float>(rootsCount);
+        comparison[i].rootsCompute = vector<fp_t>(rootsCount);
         comparison[i].rootsTrue = vector<mpf_class>(rootsCount);
         comparison[i].coefficients = vector<mpf_class>(rootsCount + 1);
     }
@@ -119,20 +122,20 @@ void Framework::generateBatch(int count, int rootsCount, float low, float high, 
 
         //calculating roots
         auto outputRoots = testing(frameworks[thread_id]->coefficientsReal);
-        auto deviation = frameworks[thread_id]->deviation(outputRoots);
+        auto deviations = frameworks[thread_id]->deviation(outputRoots);
 
         //calc deviation
-        if (deviation.first > comparison[thread_id].deviations.first and
-            deviation.first != numeric_limits<float>::infinity()) {
-            comparison[thread_id].rootsCompute = vector<float>(outputRoots);
-            comparison[thread_id].deviations = pair(deviation);
+        if (deviations.first > comparison[thread_id].deviations.first and
+            deviations.first != numeric_limits<fp_t>::infinity()) {
+            comparison[thread_id].rootsCompute = vector<fp_t>(outputRoots);
+            comparison[thread_id].deviations = pair(deviations);
             comparison[thread_id].rootsTrue = vector<mpf_class>(frameworks[thread_id]->roots);
             comparison[thread_id].coefficients = vector<mpf_class>(frameworks[thread_id]->coefficients);
         }
     }
 
     //summ deviation
-    comparator worse;
+    comparator<fp_t> worse;
     for (auto i = 0; i < cores; ++i) {
         if (comparison[i].deviations.first > worse.deviations.first) {
             worse = comparison[i];
@@ -141,21 +144,21 @@ void Framework::generateBatch(int count, int rootsCount, float low, float high, 
 
     cout << "Max deviation: " << worse.deviations.first << endl;
     cout << "Relative deviation: " << worse.deviations.second << endl;
-    cout << "Bad computed roots: ";
+    cout << "Bad computed roots: " << endl;
     printVector(worse.rootsCompute);
-    cout << endl;
-    cout << "Original roots: ";
+    cout << "Original roots: " << endl;
     printVector(worse.rootsTrue);
-    cout << endl;
-    cout << "Coefficients: ";
+    cout << "Coefficients: " << endl;
     printVector(worse.coefficients);
-    cout << endl;
-
 }
 
 template float pr_product_difference<float>(float a, float b, float c, float d);
 
 template double pr_product_difference<double>(double a, double b, double c, double d);
 
-template long double pr_product_difference<long double>(long double a, long double b, long double c, long double d);
+template void Framework<float>::generateBatch(int count, int rootsCount, float low, float high, float maxDistance,
+                                              vector<float> (*testing)(vector<float>));
+
+template void Framework<double>::generateBatch(int count, int rootsCount, double low, double high, double maxDistance,
+                                               vector<double> (*testing)(vector<double>));
 
