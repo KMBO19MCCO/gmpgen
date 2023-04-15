@@ -8,6 +8,8 @@
 #include <iostream>
 #include <gmpxx.h>
 #include <random>
+#include <omp.h>
+#include <cassert>
 
 using namespace std;
 
@@ -39,7 +41,6 @@ public:
         cout.precision(50);
     }
 
-    void generate(fp_t low, fp_t high, fp_t dist);
 
     friend ostream &operator<<(ostream &os, const Framework &framework) {
         //framework.generator.seed();
@@ -58,12 +59,14 @@ public:
         return os;
     }
 
-    static void generateBatch(int count, int rootsCount, fp_t low, fp_t high, fp_t maxDistance,
+    static void generateBatch(int count, int rootsCount, fp_t low, fp_t high, fp_t maxDistance, int multipleRoots,
                               vector<fp_t> (*testing)(vector<fp_t>));
 
 private:
     random_device randomDevice;
     mt19937_64 generator;
+
+    void generate(fp_t low, fp_t high, fp_t dist, int multipleRoots);
 
     pair<fp_t, fp_t> deviation(vector<fp_t> rootsInput);
 };

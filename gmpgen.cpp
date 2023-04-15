@@ -1,7 +1,6 @@
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "openmp-use-default-none"
 
-#include <omp.h>
 #include "gmpgen.h"
 
 using namespace std;
@@ -17,6 +16,7 @@ fp_t pr_product_difference(fp_t a, fp_t b, fp_t c, fp_t d) {
 
 template<typename fp_t>
 pair<fp_t, fp_t> Framework<fp_t>::deviation(vector<fp_t> rootsInput) {
+    assert(rootsInput.size() > 0);
     vector<fp_t> tempRoots = vector<fp_t>(roots.size());
     vector<fp_t> tempRootsInput = vector<fp_t>(roots.size());
     for (auto i = 0; i < roots.size(); ++i) {
@@ -38,7 +38,7 @@ pair<fp_t, fp_t> Framework<fp_t>::deviation(vector<fp_t> rootsInput) {
             }
         }
         maxDev = max(minDevCur, maxDev);
-        relDev = maxDev / max(abs(tempRootsInput[tempInInd]), abs(tempRoots[tempInd]));
+        relDev = max(relDev, maxDev / max(abs(tempRootsInput[tempInInd]), abs(tempRoots[tempInd])));
         tempRootsInput[tempInInd] = -numeric_limits<fp_t>::max();
         tempRoots[tempInd] = numeric_limits<fp_t>::max();
     }
@@ -52,15 +52,22 @@ pair<fp_t, fp_t> Framework<fp_t>::deviation(vector<fp_t> rootsInput) {
  * @return Root in based distance.
  */
 template<typename fp_t>
-void Framework<fp_t>::generate(fp_t low, fp_t high, fp_t dist) {
+void Framework<fp_t>::generate(fp_t low, fp_t high, fp_t dist, int multipleRoots) {
     uniform_real_distribution<fp_t> distribution(low, high);
     long double mid = distribution(generator);
     for (auto &root: roots) {
         uniform_real_distribution<fp_t> distributionSmall(-dist, +dist);
         root = static_cast<fp_t>(mid + distributionSmall(generator));
     }
+    for (auto i = 1; i < multipleRoots; ++i) {
+        roots[i] = roots[0];
+    }
 
     switch (roots.size()) {
+        case 1: {
+            coefficients[0] = 1;
+            coefficients[1] = roots[0];
+        }
         case 2: {
             coefficients[0] = 1;
             coefficients[1] = -(roots[0] + roots[1]);
@@ -74,12 +81,22 @@ void Framework<fp_t>::generate(fp_t low, fp_t high, fp_t dist) {
             coefficients[3] = -(roots[0] * roots[1] * roots[2]);
             break;
         }
+        case 4: {
+            coefficients[0] = 1;
+            coefficients[1] = -(roots[0] + roots[1] + roots[2] + roots[3]);
+            coefficients[2] = roots[0] * roots[1] + roots[0] * roots[2] + roots[0] * roots[3] + roots[1] * roots[2] +
+                              roots[1] * roots[3] + roots[2] * roots[3];
+            coefficients[3] = -(roots[0] * roots[1] * roots[2] + roots[0] * roots[1] * roots[3] +
+                                roots[0] * roots[2] * roots[3] + roots[1] * roots[2] * roots[3]);
+            coefficients[4] = roots[0] * roots[1] * roots[2] * roots[3];
+            break;
+        }
     }
 
-    for (int i = 0; i < roots.size(); i++) {
+    for (auto i = 0; i < roots.size(); ++i) {
         rootsReal[i] = static_cast<fp_t>(roots[i].get_d());
     }
-    for (int i = 0; i < roots.size() + 1; i++) {
+    for (auto i = 0; i < roots.size() + 1; ++i) {
         coefficientsReal[i] = static_cast<fp_t>(coefficients[i].get_d());
     }
 }
@@ -99,8 +116,12 @@ struct comparator {
 };
 
 template<typename fp_t>
-void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t high, fp_t maxDistance,
+void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t high, fp_t maxDistance, int multipleRoots,
                                     vector<fp_t> (*testing)(vector<fp_t>)) {
+    assert(count > 0);
+    assert(rootsCount > 0);
+    assert(high - low > maxDistance > 0);
+    assert(rootsCount >= multipleRoots >= 0);
     vector<Framework *> frameworks;
 
     auto cores = omp_get_num_procs();
@@ -115,10 +136,10 @@ void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t hi
     }
 
 #pragma OMP parallel for
-    for (int i = 0; i < count; ++i) {
+    for (auto i = 0; i < count; ++i) {
         //generation coefficients
         auto thread_id = omp_get_thread_num();
-        frameworks[thread_id]->generate(low, high, maxDistance);
+        frameworks[thread_id]->generate(low, high, maxDistance, multipleRoots);
 
         //calculating roots
         auto outputRoots = testing(frameworks[thread_id]->coefficientsReal);
@@ -156,9 +177,11 @@ template float pr_product_difference<float>(float a, float b, float c, float d);
 
 template double pr_product_difference<double>(double a, double b, double c, double d);
 
-template void Framework<float>::generateBatch(int count, int rootsCount, float low, float high, float maxDistance,
-                                              vector<float> (*testing)(vector<float>));
+template void
+Framework<float>::generateBatch(int count, int rootsCount, float low, float high, float maxDistance, int cRoots,
+                                vector<float> (*testing)(vector<float>));
 
-template void Framework<double>::generateBatch(int count, int rootsCount, double low, double high, double maxDistance,
-                                               vector<double> (*testing)(vector<double>));
+template void
+Framework<double>::generateBatch(int count, int rootsCount, double low, double high, double maxDistance, int cRoots,
+                                 vector<double> (*testing)(vector<double>));
 
