@@ -31,19 +31,14 @@ class Framework {
 public:
     Framework() = default;
 
-    vector<mpf_class> roots;
-    vector<fp_t> rootsReal;
-    vector<mpf_class> coefficients;
-    vector<fp_t> coefficientsReal;
+    vector<fp_t> roots;
+    vector<fp_t> coefficients;
 
     /// Framework constructor
     /// \param rootsCount number of roots
     explicit Framework(int rootsCount) {
-        roots = vector<mpf_class>(rootsCount);
-        rootsReal = vector<fp_t>(rootsCount);
-        coefficients = vector<mpf_class>(rootsCount + 1);
-        coefficientsReal = vector<fp_t>(rootsCount + 1);
-        cout.precision(50);
+        roots = vector<fp_t>(rootsCount);
+        coefficients = vector<fp_t>(rootsCount + 1);
     }
 
 
@@ -72,7 +67,7 @@ public:
     /// \param testing a function that implements the calculation of roots
     /// \param seed random seed override
     static void generateBatch(int count, int rootsCount, fp_t low, fp_t high, fp_t maxDistance, int multipleRoots,
-                              vector<fp_t> (*testing)(vector<fp_t>), unsigned long long seed = 0);
+                              vector<fp_t> (*testing)(vector<fp_t>), unsigned long long seed = 0, bool slow = false);
 
 private:
 
@@ -89,7 +84,7 @@ private:
     /// \return a pair of absolute and relative errors
     pair<fp_t, fp_t> deviation(vector<fp_t> rootsInput);
 
-    void generateFast(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 &generator);
+    void generateSlow(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 &generator);
 };
 
 #endif //GMPGEN_GMPGEN_H

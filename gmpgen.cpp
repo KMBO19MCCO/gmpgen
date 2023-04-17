@@ -18,7 +18,7 @@ pair<fp_t, fp_t> Framework<fp_t>::deviation(vector<fp_t> rootsInput) {
     vector<fp_t> tempRoots = vector<fp_t>(roots.size());
     vector<fp_t> tempRootsInput = vector<fp_t>(roots.size());
     for (auto i = 0; i < roots.size(); ++i) {
-        tempRoots[i] = static_cast<fp_t>(roots[i].get_d());
+        tempRoots[i] = roots[i];
         tempRootsInput[i] = rootsInput[i];
     }
     fp_t maxDev = 0;
@@ -46,10 +46,10 @@ pair<fp_t, fp_t> Framework<fp_t>::deviation(vector<fp_t> rootsInput) {
 template<typename fp_t>
 void Framework<fp_t>::generate(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 &generator) {
     uniform_real_distribution<fp_t> distribution(low, high);
-    long double mid = distribution(generator);
+    fp_t mid = distribution(generator);
     for (auto &root: roots) {
         uniform_real_distribution<fp_t> distributionSmall(-maxDistance, +maxDistance);
-        root = static_cast<fp_t>(mid + distributionSmall(generator));
+        root = mid + distributionSmall(generator);
     }
     for (auto i = 1; i < multipleRoots; ++i) {
         roots[i] = roots[0];
@@ -60,6 +60,7 @@ void Framework<fp_t>::generate(fp_t low, fp_t high, fp_t maxDistance, int multip
         case 1: {
             coefficients[0] = 1;
             coefficients[1] = roots[0];
+            break;
         }
         case 2: {
             coefficients[0] = 1;
@@ -70,27 +71,81 @@ void Framework<fp_t>::generate(fp_t low, fp_t high, fp_t maxDistance, int multip
         case 3: {
             coefficients[0] = 1;
             coefficients[1] = -(roots[0] + roots[1] + roots[2]);
-            coefficients[2] = roots[0] * roots[1] + roots[0] * roots[2] + roots[1] * roots[2];
+//            coefficients[2] = roots[0] * roots[1] + roots[0] * roots[2] + roots[1] * roots[2];
+            coefficients[2] = fma(roots[1], roots[2], pr_product_difference(roots[0], roots[1], -roots[0], roots[2]));
             coefficients[3] = -(roots[0] * roots[1] * roots[2]);
             break;
         }
         case 4: {
             coefficients[0] = 1;
             coefficients[1] = -(roots[0] + roots[1] + roots[2] + roots[3]);
-            coefficients[2] = roots[0] * roots[1] + roots[0] * roots[2] + roots[0] * roots[3] + roots[1] * roots[2] +
-                              roots[1] * roots[3] + roots[2] * roots[3];
-            coefficients[3] = -(roots[0] * roots[1] * roots[2] + roots[0] * roots[1] * roots[3] +
-                                roots[0] * roots[2] * roots[3] + roots[1] * roots[2] * roots[3]);
+//            coefficients[2] = roots[0] * roots[1] + roots[0] * roots[2] + roots[0] * roots[3] + roots[1] * roots[2] +
+//                              roots[1] * roots[3] + roots[2] * roots[3];
+            coefficients[2] = pr_product_difference(roots[0], roots[1], -roots[0], roots[2]) +
+                              pr_product_difference(roots[0], roots[3], -roots[1], roots[2]) +
+                              pr_product_difference(roots[1], roots[3], -roots[2], roots[3]);
+//            coefficients[3] = -(roots[0] * roots[1] * roots[2] + roots[0] * roots[1] * roots[3] +
+//                                roots[0] * roots[2] * roots[3] + roots[1] * roots[2] * roots[3]);
+            coefficients[3] = pr_product_difference(roots[0], fma(roots[2], roots[3],
+                                                                  pr_product_difference(roots[1], roots[2], -roots[1],
+                                                                                        roots[3])),
+                                                    -roots[1] * roots[2], roots[3] * roots[3]);
             coefficients[4] = roots[0] * roots[1] * roots[2] * roots[3];
             break;
         }
     }
+}
 
-    for (auto i = 0; i < roots.size(); ++i) {
-        rootsReal[i] = static_cast<fp_t>(roots[i].get_d());
+template<typename fp_t>
+void Framework<fp_t>::generateSlow(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 &generator) {
+    uniform_real_distribution<fp_t> distribution(low, high);
+    fp_t mid = distribution(generator);
+    vector<mpf_class> bigRoots(roots.size());
+    vector<mpf_class> bigCoefficients(coefficients.size());
+    for (auto &root: bigRoots) {
+        uniform_real_distribution<fp_t> distributionSmall(-maxDistance, +maxDistance);
+        root = mid + distributionSmall(generator);
     }
-    for (auto i = 0; i < roots.size() + 1; ++i) {
-        coefficientsReal[i] = static_cast<fp_t>(coefficients[i].get_d());
+    for (auto i = 1; i < multipleRoots; ++i) {
+        bigRoots[i] = bigRoots[0];
+    }
+
+
+    switch (bigRoots.size()) {
+        case 1: {
+            bigCoefficients[0] = 1;
+            bigCoefficients[1] = bigRoots[0];
+        }
+        case 2: {
+            bigCoefficients[0] = 1;
+            bigCoefficients[1] = -(bigRoots[0] + bigRoots[1]);
+            bigCoefficients[2] = bigRoots[0] * bigRoots[1];
+            break;
+        }
+        case 3: {
+            bigCoefficients[0] = 1;
+            bigCoefficients[1] = -(bigRoots[0] + bigRoots[1] + bigRoots[2]);
+            bigCoefficients[2] = bigRoots[0] * bigRoots[1] + bigRoots[0] * bigRoots[2] + bigRoots[1] * bigRoots[2];
+            bigCoefficients[3] = -(bigRoots[0] * bigRoots[1] * bigRoots[2]);
+            break;
+        }
+        case 4: {
+            bigCoefficients[0] = 1;
+            bigCoefficients[1] = -(bigRoots[0] + bigRoots[1] + bigRoots[2] + bigRoots[3]);
+            bigCoefficients[2] = bigRoots[0] * bigRoots[1] + bigRoots[0] * bigRoots[2] + bigRoots[0] * bigRoots[3] +
+                                 bigRoots[1] * bigRoots[2] +
+                                 bigRoots[1] * bigRoots[3] + bigRoots[2] * bigRoots[3];
+            bigCoefficients[3] = -(bigRoots[0] * bigRoots[1] * bigRoots[2] + bigRoots[0] * bigRoots[1] * bigRoots[3] +
+                                   bigRoots[0] * bigRoots[2] * bigRoots[3] + bigRoots[1] * bigRoots[2] * bigRoots[3]);
+            bigCoefficients[4] = bigRoots[0] * bigRoots[1] * bigRoots[2] * bigRoots[3];
+            break;
+        }
+    }
+    for (int i = 0; i < bigRoots.size(); ++i) {
+        roots[i] = bigRoots[i].get_d();
+    }
+    for (int i = 0; i < bigCoefficients.size(); ++i) {
+        coefficients[i] = bigCoefficients[i].get_d();
     }
 }
 
@@ -104,13 +159,13 @@ template<typename fp_t>
 struct comparator {
     std::pair<fp_t, fp_t> deviations;
     vector<fp_t> rootsCompute;
-    vector<mpf_class> rootsTrue;
-    vector<mpf_class> coefficients;
+    vector<fp_t> rootsTrue;
+    vector<fp_t> coefficients;
 };
 
 template<typename fp_t>
 void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t high, fp_t maxDistance, int multipleRoots,
-                                    vector<fp_t> (*testing)(vector<fp_t>), unsigned long long seed) {
+                                    vector<fp_t> (*testing)(vector<fp_t>), unsigned long long seed, bool slow) {
     assert(count > 0);
     assert(rootsCount > 0);
     assert(high - low > maxDistance > 0);
@@ -118,6 +173,7 @@ void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t hi
 
     random_device randomDevice;
     auto cores = omp_get_num_procs();
+    if (cores > count) cores = count;
     auto *generators = new mt19937_64[cores];
     auto *comparison = new comparator<fp_t>[cores];
     auto *frameworks = new Framework<fp_t>[cores];
@@ -134,44 +190,42 @@ void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t hi
     for (auto i = 0; i < count; ++i) {
         //generation coefficients
         auto thread_id = omp_get_thread_num();
-        frameworks[thread_id].generate(low, high, maxDistance, multipleRoots, generators[thread_id]);
+        if (slow) frameworks[thread_id].generateSlow(low, high, maxDistance, multipleRoots, generators[thread_id]);
+        else frameworks[thread_id].generate(low, high, maxDistance, multipleRoots, generators[thread_id]);
+
 
         //calculating roots
-        auto outputRoots = testing(frameworks[thread_id].coefficientsReal);
+        auto outputRoots = testing(frameworks[thread_id].coefficients);
         auto deviations = frameworks[thread_id].deviation(outputRoots);
 
         //calc deviation
-        if (deviations.first > comparison[thread_id].deviations.first and
+        if (deviations.first >= comparison[thread_id].deviations.first and
             deviations.first != numeric_limits<fp_t>::infinity()) {
             comparison[thread_id].rootsCompute = vector<fp_t>(outputRoots);
             comparison[thread_id].deviations = pair(deviations);
-            comparison[thread_id].rootsTrue = vector<mpf_class>(frameworks[thread_id].roots);
-            comparison[thread_id].coefficients = vector<mpf_class>(frameworks[thread_id].coefficients);
+            comparison[thread_id].rootsTrue = vector<fp_t>(frameworks[thread_id].roots);
+            comparison[thread_id].coefficients = vector<fp_t>(frameworks[thread_id].coefficients);
         }
     }
 
     //summ deviation
     comparator<fp_t> worse;
     for (auto i = 0; i < cores; ++i) {
-        if (comparison[i].deviations.first > worse.deviations.first) {
+        if (comparison[i].deviations.first >= worse.deviations.first) {
             worse = comparison[i];
         }
     }
-
+    fixed(cout);
+    cout.precision(numeric_limits<fp_t>::digits);
     cout << "Max deviation: " << worse.deviations.first << endl;
     cout << "Relative deviation: " << worse.deviations.second << endl;
+    cout.precision(numeric_limits<fp_t>::digits10);
     cout << "Bad computed roots: " << endl;
     printVector(worse.rootsCompute);
     cout << "Original roots: " << endl;
-//    printVector(worse.rootsTrue);
-    for (int i = 0; i < worse.rootsTrue.size(); ++i) {
-        cout << ' ' << static_cast<fp_t>(worse.rootsTrue[i].get_d()) << " " << endl;
-    }
+    printVector(worse.rootsTrue);
     cout << "Coefficients: " << endl;
-//    printVector(worse.coefficients);
-    for (int i = 0; i < worse.coefficients.size(); ++i) {
-        cout << ' ' << static_cast<fp_t>(worse.coefficients[i].get_d()) << " " << endl;
-    }
+    printVector(worse.coefficients);
 
     delete[] frameworks;
     delete[] comparison;
@@ -186,9 +240,11 @@ template long double pr_product_difference<long double>(long double a, long doub
 
 template void
 Framework<float>::generateBatch(int count, int rootsCount, float low, float high, float maxDistance, int cRoots,
-                                vector<float> (*testing)(vector<float>), unsigned long long seed = 0);
+                                vector<float> (*testing)(vector<float>), unsigned long long seed = 0,
+                                bool slow = false);
 
 template void
 Framework<double>::generateBatch(int count, int rootsCount, double low, double high, double maxDistance, int cRoots,
-                                 vector<double> (*testing)(vector<double>), unsigned long long seed = 0);
+                                 vector<double> (*testing)(vector<double>), unsigned long long seed = 0,
+                                 bool slow = false);
 
