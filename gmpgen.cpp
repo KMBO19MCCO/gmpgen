@@ -44,9 +44,7 @@ pair<fp_t, fp_t> Framework<fp_t>::deviation(vector<fp_t> rootsInput) {
 }
 
 template<typename fp_t>
-void Framework<fp_t>::generate(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 generator) {
-
-
+void Framework<fp_t>::generate(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 &generator) {
     uniform_real_distribution<fp_t> distribution(low, high);
     long double mid = distribution(generator);
     for (auto &root: roots) {
@@ -56,6 +54,7 @@ void Framework<fp_t>::generate(fp_t low, fp_t high, fp_t maxDistance, int multip
     for (auto i = 1; i < multipleRoots; ++i) {
         roots[i] = roots[0];
     }
+
 
     switch (roots.size()) {
         case 1: {
@@ -116,43 +115,38 @@ void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t hi
     assert(rootsCount > 0);
     assert(high - low > maxDistance > 0);
     assert(rootsCount >= multipleRoots >= 0);
-    vector<Framework *> frameworks;
-
-    auto cores = omp_get_num_procs();
-    auto *comparison = new comparator<fp_t>[cores];
-
-    for (auto i = 0; i < cores; ++i) {
-        frameworks.push_back(new Framework(rootsCount));
-        comparison[i].deviations = std::pair(static_cast<fp_t>(-1), static_cast<fp_t>(-1));
-        comparison[i].rootsCompute = vector<fp_t>(rootsCount);
-        comparison[i].rootsTrue = vector<mpf_class>(rootsCount);
-        comparison[i].coefficients = vector<mpf_class>(rootsCount + 1);
-    }
 
     random_device randomDevice;
+    auto cores = omp_get_num_procs();
     auto *generators = new mt19937_64[cores];
-    if (!seed) seed = randomDevice();
+    auto *comparison = new comparator<fp_t>[cores];
+    auto *frameworks = new Framework<fp_t>[cores];
+
+#pragma OMP parallel for
     for (auto i = 0; i < cores; ++i) {
-        generators[i] =  mt19937_64(seed);
+        frameworks[i] = Framework(rootsCount);
+        if (!seed) seed = randomDevice();
+        generators[i] = mt19937_64(seed);
     }
 
+    cout << "Started" << endl;
 #pragma OMP parallel for
     for (auto i = 0; i < count; ++i) {
         //generation coefficients
         auto thread_id = omp_get_thread_num();
-        frameworks[thread_id]->generate(low, high, maxDistance, multipleRoots, generators[thread_id]);
+        frameworks[thread_id].generate(low, high, maxDistance, multipleRoots, generators[thread_id]);
 
         //calculating roots
-        auto outputRoots = testing(frameworks[thread_id]->coefficientsReal);
-        auto deviations = frameworks[thread_id]->deviation(outputRoots);
+        auto outputRoots = testing(frameworks[thread_id].coefficientsReal);
+        auto deviations = frameworks[thread_id].deviation(outputRoots);
 
         //calc deviation
         if (deviations.first > comparison[thread_id].deviations.first and
             deviations.first != numeric_limits<fp_t>::infinity()) {
             comparison[thread_id].rootsCompute = vector<fp_t>(outputRoots);
             comparison[thread_id].deviations = pair(deviations);
-            comparison[thread_id].rootsTrue = vector<mpf_class>(frameworks[thread_id]->roots);
-            comparison[thread_id].coefficients = vector<mpf_class>(frameworks[thread_id]->coefficients);
+            comparison[thread_id].rootsTrue = vector<mpf_class>(frameworks[thread_id].roots);
+            comparison[thread_id].coefficients = vector<mpf_class>(frameworks[thread_id].coefficients);
         }
     }
 
@@ -169,9 +163,19 @@ void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t hi
     cout << "Bad computed roots: " << endl;
     printVector(worse.rootsCompute);
     cout << "Original roots: " << endl;
-    printVector(worse.rootsTrue);
+//    printVector(worse.rootsTrue);
+    for (int i = 0; i < worse.rootsTrue.size(); ++i) {
+        cout << ' ' << static_cast<fp_t>(worse.rootsTrue[i].get_d()) << " " << endl;
+    }
     cout << "Coefficients: " << endl;
-    printVector(worse.coefficients);
+//    printVector(worse.coefficients);
+    for (int i = 0; i < worse.coefficients.size(); ++i) {
+        cout << ' ' << static_cast<fp_t>(worse.coefficients[i].get_d()) << " " << endl;
+    }
+
+    delete[] frameworks;
+    delete[] comparison;
+    delete[] generators;
 }
 
 template float pr_product_difference<float>(float a, float b, float c, float d);
@@ -182,7 +186,7 @@ template long double pr_product_difference<long double>(long double a, long doub
 
 template void
 Framework<float>::generateBatch(int count, int rootsCount, float low, float high, float maxDistance, int cRoots,
-                                vector<float> (*testing)(vector<float>),unsigned long long seed = 0);
+                                vector<float> (*testing)(vector<float>), unsigned long long seed = 0);
 
 template void
 Framework<double>::generateBatch(int count, int rootsCount, double low, double high, double maxDistance, int cRoots,

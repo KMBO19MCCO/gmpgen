@@ -29,6 +29,8 @@ fp_t pr_product_difference(fp_t a, fp_t b, fp_t c, fp_t d);
 template<typename fp_t>
 class Framework {
 public:
+    Framework() = default;
+
     vector<mpf_class> roots;
     vector<fp_t> rootsReal;
     vector<mpf_class> coefficients;
@@ -36,7 +38,6 @@ public:
 
     /// Framework constructor
     /// \param rootsCount number of roots
-    /// \param seed random seed override
     explicit Framework(int rootsCount) {
         roots = vector<mpf_class>(rootsCount);
         rootsReal = vector<fp_t>(rootsCount);
@@ -69,6 +70,7 @@ public:
     /// \param maxDistance maximum distance between roots, the maximum distance should be less than the segment of root generation
     /// \param multipleRoots number of multiple roots
     /// \param testing a function that implements the calculation of roots
+    /// \param seed random seed override
     static void generateBatch(int count, int rootsCount, fp_t low, fp_t high, fp_t maxDistance, int multipleRoots,
                               vector<fp_t> (*testing)(vector<fp_t>), unsigned long long seed = 0);
 
@@ -80,12 +82,14 @@ private:
     /// \param high maximum of the range of accepted root values
     /// \param maxDistance maximum distance between roots
     /// \param multipleRoots number of multiple roots
-    void generate(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 generator);
+    void generate(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 &generator);
 
     /// Calculating the deviation between the original roots and the calculated ones
     /// \param rootsInput the resulting roots
     /// \return a pair of absolute and relative errors
     pair<fp_t, fp_t> deviation(vector<fp_t> rootsInput);
+
+    void generateFast(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 &generator);
 };
 
 #endif //GMPGEN_GMPGEN_H
