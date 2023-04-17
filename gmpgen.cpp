@@ -175,7 +175,7 @@ void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t hi
     auto cores = omp_get_num_procs();
     if (cores > count) cores = count;
     auto *generators = new mt19937_64[cores];
-    auto *comparison = new comparator<fp_t>[cores];
+    auto *comparsion = new comparator<fp_t>[cores];
     auto *frameworks = new Framework<fp_t>[cores];
 
 #pragma OMP parallel for
@@ -199,20 +199,20 @@ void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t hi
         auto deviations = frameworks[thread_id].deviation(outputRoots);
 
         //calc deviation
-        if (deviations.first >= comparison[thread_id].deviations.first and
+        if (deviations.first >= comparsion[thread_id].deviations.first and
             deviations.first != numeric_limits<fp_t>::infinity()) {
-            comparison[thread_id].rootsCompute = vector<fp_t>(outputRoots);
-            comparison[thread_id].deviations = pair(deviations);
-            comparison[thread_id].rootsTrue = vector<fp_t>(frameworks[thread_id].roots);
-            comparison[thread_id].coefficients = vector<fp_t>(frameworks[thread_id].coefficients);
+            comparsion[thread_id].rootsCompute = vector<fp_t>(outputRoots);
+            comparsion[thread_id].deviations = pair(deviations);
+            comparsion[thread_id].rootsTrue = vector<fp_t>(frameworks[thread_id].roots);
+            comparsion[thread_id].coefficients = vector<fp_t>(frameworks[thread_id].coefficients);
         }
     }
 
     //summ deviation
-    comparator<fp_t> worse;
+    comparator<fp_t> worse = comparsion[0];
     for (auto i = 0; i < cores; ++i) {
-        if (comparison[i].deviations.first >= worse.deviations.first) {
-            worse = comparison[i];
+        if (comparsion[i].deviations.first > worse.deviations.first) {
+            worse = comparsion[i];
         }
     }
     fixed(cout);
@@ -228,7 +228,7 @@ void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t hi
     printVector(worse.coefficients);
 
     delete[] frameworks;
-    delete[] comparison;
+    delete[] comparsion;
     delete[] generators;
 }
 
