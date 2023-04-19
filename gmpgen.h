@@ -66,6 +66,7 @@ public:
     /// \param multipleRoots number of multiple roots
     /// \param testing a function that implements the calculation of roots
     /// \param seed random seed override
+    /// \param slow bignum backend
     static void generateBatch(int count, int rootsCount, fp_t low, fp_t high, fp_t maxDistance, int multipleRoots,
                               vector<fp_t> (*testing)(vector<fp_t>), unsigned long long seed = 0, bool slow = false);
 

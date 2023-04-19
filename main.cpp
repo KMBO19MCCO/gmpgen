@@ -11,7 +11,7 @@ vector<fp_t> solve(std::vector<fp_t> coefficients) {
     A = coefficients[0];
     B = coefficients[1];
     C = coefficients[2];
-    fp_t d = pr_product_difference(B,B, 4*A, C);
+    fp_t d = pr_product_difference(B, B, 4 * A, C);
     d = std::max(d, static_cast<fp_t>(numeric_limits<fp_t>::epsilon()));
     if (d > numeric_limits<fp_t>::epsilon()) {
         output[0] = (-B + sqrt(d)) / (2 * A);
@@ -24,6 +24,6 @@ vector<fp_t> solve(std::vector<fp_t> coefficients) {
 }
 
 int main() {
-    Framework<float>::generateBatch(1000000, 2, -1, 1, 1e-4, 2, solve, 0, false);
+    Framework<float>::generateBatch(1000000, 2, -1, 1, 1e-4, 0, solve, 0, false);
     return 0;
 }
