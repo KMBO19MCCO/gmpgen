@@ -10,6 +10,7 @@
 #include <random>
 #include <omp.h>
 #include <cassert>
+#include <time.h>
 
 using namespace std;
 
@@ -78,14 +79,14 @@ private:
     /// \param high maximum of the range of accepted root values
     /// \param maxDistance maximum distance between roots
     /// \param multipleRoots number of multiple roots
-    void generate(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 &generator);
+    void generate(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, default_random_engine &generator);
 
     /// Calculating the deviation between the original roots and the calculated ones
     /// \param rootsInput the resulting roots
     /// \return a pair of absolute and relative errors
     pair<fp_t, fp_t> deviation(vector<fp_t> rootsInput);
 
-    void generateSlow(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 &generator);
+    void generateSlow(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, default_random_engine &generator);
 };
 
 #endif //GMPGEN_GMPGEN_H

@@ -44,7 +44,8 @@ pair<fp_t, fp_t> Framework<fp_t>::deviation(vector<fp_t> rootsInput) {
 }
 
 template<typename fp_t>
-void Framework<fp_t>::generate(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 &generator) {
+void
+Framework<fp_t>::generate(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, default_random_engine &generator) {
     uniform_real_distribution<fp_t> distribution(low, high);
     fp_t mid = distribution(generator);
     for (auto &root: roots) {
@@ -97,7 +98,8 @@ void Framework<fp_t>::generate(fp_t low, fp_t high, fp_t maxDistance, int multip
 }
 
 template<typename fp_t>
-void Framework<fp_t>::generateSlow(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots, mt19937_64 &generator) {
+void Framework<fp_t>::generateSlow(fp_t low, fp_t high, fp_t maxDistance, int multipleRoots,
+                                   default_random_engine &generator) {
     uniform_real_distribution<fp_t> distribution(low, high);
     fp_t mid = distribution(generator);
     vector<mpf_class> bigRoots(roots.size());
@@ -174,15 +176,15 @@ void Framework<fp_t>::generateBatch(int count, int rootsCount, fp_t low, fp_t hi
     random_device randomDevice;
     auto cores = omp_get_num_procs();
     if (cores > count) cores = count;
-    auto *generators = new mt19937_64[cores];
+    auto *generators = new default_random_engine[cores];
     auto *comparsion = new comparator<fp_t>[cores];
     auto *frameworks = new Framework<fp_t>[cores];
 
+    if (!seed) seed = randomDevice();
 #pragma OMP parallel for
     for (auto i = 0; i < cores; ++i) {
         frameworks[i] = Framework(rootsCount);
-        if (!seed) seed = randomDevice();
-        generators[i] = mt19937_64(seed);
+        generators[i] = default_random_engine(seed + i);
     }
 
     cout << "Started" << endl;

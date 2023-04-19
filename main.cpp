@@ -24,6 +24,6 @@ vector<fp_t> solve(std::vector<fp_t> coefficients) {
 }
 
 int main() {
-    Framework<float>::generateBatch(1000000, 2, -1, 1, 1e-4, 0, solve, 0, false);
+    Framework<float>::generateBatch(10'000'000, 2, -1, 1, 1e-4, 0, solve, 0, false);
     return 0;
 }
